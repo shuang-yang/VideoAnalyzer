@@ -5,6 +5,7 @@ import os
 import requests
 from enum import Enum
 from azure.storage.blob import BlockBlobService, PublicAccess
+from concurrent import futures
 
 
 #
@@ -111,6 +112,9 @@ class BlobManager(object):
     def list_blobs(self, container_name):
         return self.block_blob_service.list_blobs(container_name)
 
+    def get_blob_url(self, container_name, blob_name):
+        return self.block_blob_service.make_blob_url(container_name, blob_name)
+
     def delete_container(self, container_name):
         self.block_blob_service.delete_container(container_name)
 
@@ -137,7 +141,7 @@ class VideoManager(object):
         clip = self.handle_invalid_input(end_time, filename, grab_rate, grab_rate_type, start_time)
 
         # Cut the videofile to desired range
-        clipped_filename = self.clip_video(start_time, end_time, clip)
+        clipped_filename = self.clip_video(start_time, end_time, filename, clip)
 
         # Grab frames based on preset grabRate
         cap = cv.VideoCapture(clipped_filename)
@@ -212,6 +216,7 @@ class ImageAnalyzer(object):
         self.vision_analyze_url = vision_base_url + "analyze"
         self.dir = dir
 
+    # Analyze an image from local upload
     def analyze_local(self, image_filename):
         assert self.subscription_key
         path = os.path.join(self.dir, image_filename)
@@ -225,8 +230,9 @@ class ImageAnalyzer(object):
                                  params=params, data=image_data)
         response.raise_for_status()
         analysis = response.json()
-        print(analysis)
+        return analysis
 
+    # Analyze an image from a url
     def analyze_remote(self, image_url):
         assert self.subscription_key
         headers = {'Ocp-Apim-Subscription-Key': self.subscription_key}
@@ -235,10 +241,18 @@ class ImageAnalyzer(object):
         response = requests.post(self.vision_analyze_url, headers=headers, params=params, json=data)
         response.raise_for_status()
 
-        # The 'analysis' object contains various fields that describe the image. The most
-        # relevant caption for the image is obtained from the 'descriptions' property.
+        # The 'analysis' object contains various fields that describe the image
         analysis = response.json()
-        print(analysis)
+        return analysis
+
+    # Analyse images concurrently
+    def analyze_remote_by_batch(self, urls):
+        with futures.ThreadPoolExecutor(max_workers=3) as executor:
+            async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
+            analyses = []
+            for future in futures.as_completed(async_tasks):
+                analyses.append(future.result())
+            return analyses
 
 
 # Main Execution Body
@@ -256,9 +270,18 @@ if __name__ == '__main__':
     #     # grabber.grab_audio("Suntec.mp4")
     # except Exception as e:
     #     print(e.args)
+
     image_analyzer = ImageAnalyzer("c49f0b5b59654ca28e3fec02d015c60f",
                                    "https://southeastasia.api.cognitive.microsoft.com/vision/v1.0/", "./data/")
-    image_analyzer.analyze_local("mad-men.jpg")
+    urls = map(lambda x: blob.get_blob_url('image', x.name), blob.list_blobs('image'))
+    analyses = image_analyzer.analyze_remote_by_batch(urls)
+    for analysis in analyses:
+        print(analysis)
+
+    # for url in urls:
+    #     image_analyzer.analyze_remote(url)
+    # map(lambda x: image_analyzer.analyze_remote(x), urls)
+    # image_analyzer.analyze_remote(url)
 
 
 
