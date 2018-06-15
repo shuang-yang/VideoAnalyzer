@@ -3,88 +3,14 @@ import numpy as np
 import moviepy.editor as mp
 import os
 import requests
-from enum import Enum
+import collections
+import functools
+import matplotlib.pyplot as plt
 from azure.storage.blob import BlockBlobService, PublicAccess
 from concurrent import futures
-
-
-#
-# Utility classes
-#
-class VideoFrame(object):
-    def __init__(self, image, video_time, index):
-        self.image = image
-        self.video_time = video_time
-        self.index = index
-
-
-class GrabRateType(Enum):
-    BY_FRAME = 0
-    BY_SECOND = 1
-
-
-class UploadType(Enum):
-    LOCAL = 0
-    REMOTE = 1
-
-
-class Messages(Enum):
-    INVALID_START_END_TIME = 'Please make sure start and end time is specified correctly. They should both be integer' \
-                             ' values within the time range of the video (in seconds). '
-    INVALID_GRAB_RATE = 'Please make sure grab rate is specified correctly. It should be a non-negative integer'
-    FILE_NOT_FOUND = 'File is not found. Please make sure the file name and path is correct.'
-    CONTAINER_NOT_FOUND = 'Container is not found. Please make sure the name is correct.'
-    BLOB_NOT_FOUND = 'Blob is not found. Please make sure the name is correct.'
-
-
-#
-# Utility methods
-#
-def ms_to_std_time(time_in_ms):
-    time_in_s = int(time_in_ms / 1000)
-    ms_component = get_ms_component(time_in_ms)
-    std_time_in_s = time_in_s % 60
-    std_time_in_s_str = str(std_time_in_s) if std_time_in_s >= 10 else '0' + str(std_time_in_s)
-    std_time_in_min = int((time_in_s - std_time_in_s) % 3600 / 60)
-    std_time_in_min_str = str(std_time_in_min) if std_time_in_min >= 10 else '0' + str(std_time_in_min)
-    std_time_in_hr = int((time_in_s - std_time_in_min * 60 - std_time_in_s) / 3600)
-    std_time_in_hr_str = str(std_time_in_hr) if std_time_in_hr >= 10 else '0' + str(std_time_in_hr)
-    std_time = std_time_in_hr_str + ':' + std_time_in_min_str + ':' + std_time_in_s_str + '.' + ms_component
-    return std_time
-
-
-def std_time_to_s(std_time):
-    times = std_time.split(':')
-    assert len(times) == 3
-    return times[0] * 3600 + times[1] * 60 + times[2]
-
-
-def get_ms_component(time_in_ms):
-    ms_component = str(time_in_ms)[-3:] if time_in_ms >= 100 else str(time_in_ms)
-    while len(ms_component) < 3:
-        ms_component = '0' + ms_component
-    return ms_component
-
-
-def clear_local_files(path):
-    files = os.listdir(path)
-    for file in files:
-        if '.mp4' not in file:
-            file_path = os.path.join(path, file)
-            try:
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
-                # elif os.path.isdir(file_path): shutil.rmtree(file_path)
-            except Exception as e:
-                print(e)
-
-
-#
-# Exceptions
-#
-class InvalidInputException(Exception):
-    def __init__(self, arg):
-        self.arg = arg
+from wordcloud import WordCloud
+from Models import *
+from Utility import *
 
 
 # A helper class to upload and download files on an Azure Blob Storage
@@ -254,34 +180,60 @@ class ImageAnalyzer(object):
                 analyses.append(future.result())
             return analyses
 
+    def convert_to_image_data(self, analysis_json):
+        categories = map(lambda x: (x["name"], x["score"]), analysis_json["categories"])
+        tags = analysis_json["description"]["tags"]
+        captions = map(lambda x: (x["text"], x["confidence"]), analysis_json["description"]["captions"])
+        dominant_colors = analysis_json["color"]["dominantColors"]
+        foreground_color = analysis_json["color"]["dominantColorForeground"]
+        background_color = analysis_json["color"]["dominantColorBackground"]
+        accent_color = analysis_json["color"]["accentColor"]
+        isBwImg = analysis_json["color"]["isBwImg"]
+        height = analysis_json["metadata"]["height"]
+        width = analysis_json["metadata"]["width"]
+        image_format = analysis_json["metadata"]["format"]
+        request_id = analysis_json["requestId"]
+
+        return ImageData(categories, tags, captions, dominant_colors, foreground_color,
+                         background_color, accent_color, isBwImg, height, width, image_format, request_id)
+
 
 # Main Execution Body
 if __name__ == '__main__':
     blob = BlobManager(account_name='videoanalyserstorage',
                        account_key='0GALSGQ2WZgu4tuH4PWKAM85K3KzhbhsAHulCcQndOcW0EgJ1BaP10D6KBgRDOCJQcz3B9AAPkOY6F/mYhXa7w==')
     # blob.clear()
-    # clear_local_files('./data/')
-    # blob.create_container('video')
-    # blob.create_container('image')
-    # blob.create_container('audio')
-    # try:
-    #     grabber = VideoManager('./data/', blob)
-    #     frame_list = grabber.grab_frames('Suntec.mp4', 100, 101, GrabRateType.BY_SECOND, 200)
-    #     # grabber.grab_audio("Suntec.mp4")
-    # except Exception as e:
-    #     print(e.args)
+    clear_local_files('./data/')
+    blob.create_container('video')
+    blob.create_container('image')
+    blob.create_container('audio')
+    try:
+        grabber = VideoManager('./data/', blob)
+        # Obtain a list of frames
+        frame_list = grabber.grab_frames('Suntec.mp4', 100, 101, GrabRateType.BY_SECOND, 400)
 
+        # grabber.grab_audio("Suntec.mp4")
+    except Exception as e:
+        print(e.args)
+
+    # Obtain a list of analyses based on the grabbed frames
     image_analyzer = ImageAnalyzer("c49f0b5b59654ca28e3fec02d015c60f",
                                    "https://southeastasia.api.cognitive.microsoft.com/vision/v1.0/", "./data/")
     urls = map(lambda x: blob.get_blob_url('image', x.name), blob.list_blobs('image'))
     analyses = image_analyzer.analyze_remote_by_batch(urls)
-    for analysis in analyses:
-        print(analysis)
+    image_data_list = map(lambda x: image_analyzer.convert_to_image_data(x), analyses)
+    frame_to_data_list = list(zip(frame_list, image_data_list))
+    for frame, image_data in frame_to_data_list:
+        frame.set_image_data(image_data)
+    video_data = VideoData(frame_list)
+    top_keywords = video_data.top_keywords_from_frames(8)
+    font_path = 'Symbola.ttf'
+    text = ' '.join(video_data.get_all_tags())
+    word_cloud = WordCloud(background_color="white", font_path=font_path).generate_from_frequencies(dict(top_keywords))
+    word_cloud.to_file('Suntec_word_cloud.jpg')
 
-    # for url in urls:
-    #     image_analyzer.analyze_remote(url)
-    # map(lambda x: image_analyzer.analyze_remote(x), urls)
-    # image_analyzer.analyze_remote(url)
+
+
 
 
 
