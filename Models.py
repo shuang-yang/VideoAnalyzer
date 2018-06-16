@@ -1,6 +1,7 @@
 import collections
 from wordcloud import WordCloud
 
+
 class VideoFrame(object):
     def __init__(self, image, video_time, index, image_data=None):
         self.image = image
