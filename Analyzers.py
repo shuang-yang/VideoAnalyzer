@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time
+from enum import Enum
 from Models import *
 from Utility import *
 from DataSourceManagers import *
@@ -46,18 +47,33 @@ class ImageAnalyzer(object):
     # Analyse images concurrently
     def analyze_remote_by_batch(self, urls):
         # with futures.ThreadPoolExecutor() as executor:
-        #     async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
-        #     analyses = []
-        #     for future in futures.as_completed(async_tasks):
-        #         print(future.result())
-        #         analyses.append(future.result())
-        #     return analyses
+            #
+            # async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
+            # analyses = []
+            # for future in futures.as_completed(async_tasks):
+            #     print(future.result())
+            #     analyses.append(future.result())
+            # return analyses
+            # index = 0
+            # analyses = []
+            # while index < len(urls):
+            #     async_tasks = []
+            #     num = len(urls) - index if len(urls) - index < 10 else 10
+            #     for i in range(num):
+            #         async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
+            #     time.sleep(1)
+            #     for future in futures.as_completed(async_tasks):
+            #         print(future.result())
+            #         analyses.append(future.result())
+            #     index += 10
+            # return analyses
         analyses = []
         for url in urls:
             analysis = self.analyze_remote(url)
             analyses.append(analysis)
         return analyses
 
+    # Converts a json-formated string into an ImageData object
     def convert_to_image_data(self, analysis_json):
         categories = map(lambda x: (x["name"], x["score"]), analysis_json["categories"])
         tags = analysis_json["description"]["tags"]
@@ -147,6 +163,7 @@ class FaceAnalyzer(object):
                 analyses.append(future.result())
             return analyses
 
+    # Converts a json-formated string into a list of FaceData object
     def convert_to_face_data(self, analysis_json):
         face_data_list = []
         for face_json in analysis_json:
@@ -177,3 +194,35 @@ class FaceAnalyzer(object):
             face_data_list.append(face_data)
 
         return face_data_list
+
+
+class TextAnalyticsService(Enum):
+    LANGUAGES = "languages"
+    SENTIMENT = "sentiment"
+    KEY_PHRASES = "keyPhrases"
+    ENTITIES = "entities"
+
+
+class TextAnalyzer(object):
+    def __init__(self, subscription_key, text_analytics__base_url, dir):
+        self.subscription_key = subscription_key
+        self.text_analytics__base_url = text_analytics__base_url
+        self.dir = dir
+
+    def analyze_local(self, image_filename, service):
+        assert self.subscription_key
+        path = os.path.join(self.dir, image_filename)
+        text_analytics_url = self.text_analytics__base_url + service
+
+        # Read the image into a byte array
+        text_data = open(path, "rb").read()
+        data = {'documents': [
+                  {'id': '1', 'language': 'en', 'text': 'a person holding a sign. a man holding a sign. a man standing in a kitchen. David Schwimmer in a red shirt standing in front of a window. a person standing in a room. a group of people standing in a kitchen. a group of people standing in a room playing a video game. a man standing in front of a mirror posing for the camera. a man standing next to a woman. a man holding a phone. a man standing next to a window. a couple of people that are standing in a room. a couple of people that are standing in a room. a group of people looking at a laptop. a man and a woman sitting at a table eating food. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a man and a woman looking at the camera. a man and a woman looking at the camera. a man and a woman sitting at a table. a group of people sitting at a table. a group of people sitting at a table. Courteney Cox et al. sitting at a table. Madeline Zima sitting on a bed. a woman sitting on a bed. a woman sitting on a bed. a woman sitting on a bed. David Schwimmer standing in front of a mirror posing for the camera. a person standing in front of a mirror posing for the camera. a man and a woman standing in a kitchen. a person standing in a room. a man playing a video game. a person sitting in a room. David Schwimmer standing in front of a building. a man sitting in front of a building. a person sitting in front of a fence. a person sitting in a room. a person in a dark room. a woman sitting in a dark room. a close up of a bridge. a person sitting on a kitchen counter. a group of people sitting at a table. a person sitting at a table. a person wearing a suit and tie. a person sitting at a table. a person cutting a cake. a person standing in a room. a person standing in a room. a group of people sitting at a table. a man standing in front of a mirror. a group of people sitting at a table in a restaurant. a man and a woman standing in front of a door. a person standing in front of a mirror posing for the camera. a man and a woman looking at the camera. '
+                   }
+                ]}
+        headers = {'Ocp-Apim-Subscription-Key': self.subscription_key}
+        response = requests.post(text_analytics_url,
+                                 headers=headers, json=data)
+        response.raise_for_status()
+        analysis = response.json()
+        return analysis
