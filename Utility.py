@@ -65,7 +65,7 @@ def get_ms_component(time_in_ms):
 def clear_local_files(path):
     files = os.listdir(path)
     for file in files:
-        if '.mp4' not in file:
+        if '.mp4' not in file and '.mkv' not in file:
             file_path = os.path.join(path, file)
             try:
                 if os.path.isfile(file_path):

@@ -72,19 +72,25 @@ class VideoManager(object):
         clip = self.handle_invalid_input(end_time, filename, grab_rate, grab_rate_type, start_time)
 
         # Cut the videofile to desired range
-        clipped_filename = self.clip_video(start_time, end_time, filename, clip)
+        # clipped_filename = self.clip_video(start_time, end_time, filename, clip)
 
         # Grab frames based on preset grabRate
-        cap = cv.VideoCapture(clipped_filename)
+        filepath = os.path.join(self.curr_dir, filename)
+        cap = cv.VideoCapture(filepath)
         fpms = float(cap.get(cv.CAP_PROP_FPS)) / 1000
         success, image = cap.read()
         current_frame_index = 0
         grabbed_frame_count = 0
         frame_list = []
-        while success:
-            # Capture image
-            success, image = cap.read()
 
+        while success and cap.get(cv.CAP_PROP_POS_MSEC) < start_time * 1000:
+            success, image = cap.read()
+        while success and cap.get(cv.CAP_PROP_POS_MSEC) < end_time * 1000:
+            success, image = cap.read()
+            #
+        # while success:
+        #     # Capture image
+        #     success, image = cap.read()
             # Create a VideoFrame and save as file according to grabRate
             current_video_time = int(current_frame_index / fpms)
             condition = current_frame_index % grab_rate == 0 if grab_rate_type == GrabRateType.BY_FRAME else int(
@@ -116,7 +122,7 @@ class VideoManager(object):
     def clip_video(self, start_time, end_time, filename, clip):
         clipped = clip.subclip(start_time, end_time)
         clipped_filename = os.path.join(self.curr_dir, str.replace(filename, '.', '_Clipped.'))
-        clipped.write_videofile(clipped_filename)
+        clipped.write_videofile(clipped_filename, codec='libx264')
         return clipped_filename
 
     # Generate file and save as jpg file
@@ -128,7 +134,7 @@ class VideoManager(object):
         self.blob.upload(filename, 'image')
 
     def generate_frame_filename(self, filename, index, frame_std_time):
-        return os.path.splitext(self.curr_dir + filename)[0] + str(index) + '_' + frame_std_time + '.jpg'
+        return os.path.splitext(self.curr_dir + filename)[0] + '_' + frame_std_time + '_' + str(index) + '.jpg'
 
     def grab_audio(self, filename):
         clip = mp.VideoFileClip(os.path.join(self.curr_dir, filename))

@@ -52,13 +52,14 @@ class VideoData(object):
                 continue
         return tags_list
 
+    # Get all captions of the frames condensed in one text
     def get_captions_as_text(self):
         caption = ""
         for frame in self.frames_with_data:
             # If the caption list is not empty, add them to the caption string
             if len(frame.image_data.captions) != 0:
                 frame_caption = frame.image_data.captions[0][0]
-                caption += " " + frame_caption
+                caption += frame_caption + ". "
         return caption
 
     def get_all_caption_keywords(self):
@@ -74,7 +75,7 @@ class VideoData(object):
 
 class ImageData(object):
     def __init__(self, categories, tags, captions, dominant_colors, foreground_color,
-                 background_color, accent_color, isBwImg, height, width, image_format, request_id, landmarks=None, celebrities=None, ):
+                 background_color, accent_color, isBwImg, height, width, image_format, request_id, landmarks=[], celebrities=[]):
         self.categories = categories
         self.tags = tags
         self.captions = captions

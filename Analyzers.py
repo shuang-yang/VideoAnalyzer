@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import time
 from Models import *
 from Utility import *
 from DataSourceManagers import *
@@ -44,13 +45,18 @@ class ImageAnalyzer(object):
 
     # Analyse images concurrently
     def analyze_remote_by_batch(self, urls):
-        with futures.ThreadPoolExecutor() as executor:
-            async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
-            analyses = []
-            for future in futures.as_completed(async_tasks):
-                print(future.result())
-                analyses.append(future.result())
-            return analyses
+        # with futures.ThreadPoolExecutor() as executor:
+        #     async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
+        #     analyses = []
+        #     for future in futures.as_completed(async_tasks):
+        #         print(future.result())
+        #         analyses.append(future.result())
+        #     return analyses
+        analyses = []
+        for url in urls:
+            analysis = self.analyze_remote(url)
+            analyses.append(analysis)
+        return analyses
 
     def convert_to_image_data(self, analysis_json):
         categories = map(lambda x: (x["name"], x["score"]), analysis_json["categories"])
@@ -73,10 +79,14 @@ class ImageAnalyzer(object):
         request_id = analysis_json["requestId"]
 
         # Optional landmark and celebrity identification
-        details = [c["detail"] for c in analysis_json["categories"]]
+        details = []
+        for category in analysis_json["categories"]:
+            if category.get("detail") is not None:
+                details.append(category["detail"])
         landmarks = []
         celebrities = []
         for detail in details:
+            print('considering detail')
             if detail.get("landmarks") is not None:
                 for landmark in detail["landmarks"]:
                     landmarks.append((landmark["name"], landmark["confidence"]))
