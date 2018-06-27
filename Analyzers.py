@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time
+from concurrent import futures
 from enum import Enum
 from Models import *
 from Utility import *
@@ -46,32 +47,49 @@ class ImageAnalyzer(object):
 
     # Analyse images concurrently
     def analyze_remote_by_batch(self, urls):
-        # with futures.ThreadPoolExecutor() as executor:
-            #
-            # async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
-            # analyses = []
-            # for future in futures.as_completed(async_tasks):
-            #     print(future.result())
-            #     analyses.append(future.result())
-            # return analyses
-            # index = 0
-            # analyses = []
-            # while index < len(urls):
-            #     async_tasks = []
-            #     num = len(urls) - index if len(urls) - index < 10 else 10
-            #     for i in range(num):
-            #         async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
-            #     time.sleep(1)
-            #     for future in futures.as_completed(async_tasks):
-            #         print(future.result())
-            #         analyses.append(future.result())
-            #     index += 10
-            # return analyses
+
+        # async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
+        # analyses = []
+        # for future in futures.as_completed(async_tasks):
+        #     print(future.result())
+        #     analyses.append(future.result())
+        # return analyses
+
+        index = 0
         analyses = []
-        for url in urls:
-            analysis = self.analyze_remote(url)
-            analyses.append(analysis)
+        async_tasks = []
+        while index < len(urls):
+            num = len(urls) - index if len(urls) - index < 10 else 10
+            # for i in range(num):
+            #     async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
+
+            with futures.ThreadPoolExecutor() as executor:
+                # async_tasks = dict(
+                #     (executor.submit(self.analyze_remote(urls[index + i])), urls[index + i]) for i in range(num))
+                batch_tasks = list(map(lambda x: executor.submit(self.analyze_remote, urls[index + x]), range(num)))
+                # for i in range(num):
+                #     async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
+                async_tasks.extend(batch_tasks)
+                time.sleep(1)
+                print("Concurrency: Submitted batch " + str(index / 10))
+                index += 10
+
+        for async_task in async_tasks:
+            if async_task.exception() is not None:
+                print('generated an exception: %s' % (async_task.exception()))
+            else:
+                analyses.append(async_task.result())
+
         return analyses
+
+        # analyses = []
+        # index = 0
+        # for url in urls:
+        #     analysis = self.analyze_remote(url)
+        #     analyses.append(analysis)
+        #     print("Generated analysis " + str(index))
+        #     index += 1
+        # return analyses
 
     # Converts a json-formated string into an ImageData object
     def convert_to_image_data(self, analysis_json):
