@@ -10,11 +10,12 @@ from DataSourceManagers import *
 
 
 class ImageAnalyzer(object):
-    def __init__(self, subscription_key, vision_base_url, dir):
+    def __init__(self, subscription_key, vision_base_url, dir, max_calls_per_second):
         self.subscription_key = subscription_key
         self.vision_base_url = vision_base_url
         self.vision_analyze_url = vision_base_url + "analyze"
         self.dir = dir
+        self.max_calls_per_second = max_calls_per_second
 
     # Analyze an image from local upload
     def analyze_local(self, image_filename):
@@ -47,33 +48,22 @@ class ImageAnalyzer(object):
 
     # Analyse images concurrently
     def analyze_remote_by_batch(self, urls):
-
-        # async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
-        # analyses = []
-        # for future in futures.as_completed(async_tasks):
-        #     print(future.result())
-        #     analyses.append(future.result())
-        # return analyses
-
         index = 0
         analyses = []
         async_tasks = []
+        max_call = self.max_calls_per_second
+        # Submit tasks concurrently, with a given maximum number of calls/second
         while index < len(urls):
-            num = len(urls) - index if len(urls) - index < 10 else 10
-            # for i in range(num):
-            #     async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
-
+            # Submit max_call number of api calls per second
+            num = len(urls) - index if len(urls) - index < max_call else max_call
             with futures.ThreadPoolExecutor() as executor:
-                # async_tasks = dict(
-                #     (executor.submit(self.analyze_remote(urls[index + i])), urls[index + i]) for i in range(num))
                 batch_tasks = list(map(lambda x: executor.submit(self.analyze_remote, urls[index + x]), range(num)))
-                # for i in range(num):
-                #     async_tasks.append(executor.submit(self.analyze_remote(urls[index + i])))
                 async_tasks.extend(batch_tasks)
                 time.sleep(1)
-                print("Concurrency: Submitted batch " + str(index / 10))
-                index += 10
+                print("Image Analyzer Concurrency: Submitted batch " + str(index / 10))
+                index += max_call
 
+        # Add result of analysis in the order of submission
         for async_task in async_tasks:
             if async_task.exception() is not None:
                 print('generated an exception: %s' % (async_task.exception()))
@@ -82,17 +72,10 @@ class ImageAnalyzer(object):
 
         return analyses
 
-        # analyses = []
-        # index = 0
-        # for url in urls:
-        #     analysis = self.analyze_remote(url)
-        #     analyses.append(analysis)
-        #     print("Generated analysis " + str(index))
-        #     index += 1
-        # return analyses
-
     # Converts a json-formated string into an ImageData object
     def convert_to_image_data(self, analysis_json):
+        if len(analysis_json) == 0:
+            return None
         categories = map(lambda x: (x["name"], x["score"]), analysis_json["categories"])
         tags = analysis_json["description"]["tags"]
 
@@ -133,10 +116,11 @@ class ImageAnalyzer(object):
 
 
 class FaceAnalyzer(object):
-    def __init__(self, subscription_key, face_api_url, dir):
+    def __init__(self, subscription_key, face_api_url, dir, max_calls_per_second):
         self.subscription_key = subscription_key
         self.face_api_url = face_api_url
         self.dir = dir
+        self.max_calls_per_second = max_calls_per_second
 
     def analyze_local(self, image_filename):
         assert self.subscription_key
@@ -173,17 +157,35 @@ class FaceAnalyzer(object):
 
     # Analyse faces concurrently
     def analyze_remote_by_batch(self, urls):
-        with futures.ThreadPoolExecutor() as executor:
-            async_tasks = map(lambda x: executor.submit(self.analyze_remote, x), urls)
-            analyses = []
-            for future in futures.as_completed(async_tasks):
-                print(future.result())
-                analyses.append(future.result())
-            return analyses
+        index = 0
+        analyses = []
+        async_tasks = []
+        max_call = self.max_calls_per_second
+        # Submit tasks concurrently, with a given maximum number of calls/second
+        while index < len(urls):
+            # Submit max_call number of api calls per second
+            num = len(urls) - index if len(urls) - index < max_call else max_call
+            with futures.ThreadPoolExecutor() as executor:
+                batch_tasks = list(map(lambda x: executor.submit(self.analyze_remote, urls[index + x]), range(num)))
+                async_tasks.extend(batch_tasks)
+                time.sleep(1)
+                print("Face Analyzer Concurrency: Submitted batch " + str(index / max_call))
+                index += max_call
+
+        # Add result of analysis in the order of submission
+        for async_task in async_tasks:
+            if async_task.exception() is not None:
+                print('generated an exception: %s' % (async_task.exception()))
+            else:
+                analyses.append(async_task.result())
+
+        return analyses
 
     # Converts a json-formated string into a list of FaceData object
     def convert_to_face_data(self, analysis_json):
         face_data_list = []
+        if len(analysis_json) == 0:
+            return face_data_list
         for face_json in analysis_json:
             print("analyzing face...")
             id = face_json["faceId"]
@@ -227,16 +229,17 @@ class TextAnalyzer(object):
         self.text_analytics__base_url = text_analytics__base_url
         self.dir = dir
 
-    def analyze_local(self, image_filename, service):
+    def analyze_local(self, filename, service):
         assert self.subscription_key
-        path = os.path.join(self.dir, image_filename)
+        path = os.path.join(self.dir, filename)
         text_analytics_url = self.text_analytics__base_url + service
 
         # Read the image into a byte array
-        text_data = open(path, "rb").read()
+        # text_data = open(path, "rb").read()
+        with open(path, 'r') as myfile:
+            text_data = myfile.read().replace('\n', '')
         data = {'documents': [
-                  {'id': '1', 'language': 'en', 'text': 'a person holding a sign. a man holding a sign. a man standing in a kitchen. David Schwimmer in a red shirt standing in front of a window. a person standing in a room. a group of people standing in a kitchen. a group of people standing in a room playing a video game. a man standing in front of a mirror posing for the camera. a man standing next to a woman. a man holding a phone. a man standing next to a window. a couple of people that are standing in a room. a couple of people that are standing in a room. a group of people looking at a laptop. a man and a woman sitting at a table eating food. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a group of people sitting at a table. a man and a woman sitting at a table. a man and a woman looking at the camera. a man and a woman looking at the camera. a man and a woman sitting at a table. a group of people sitting at a table. a group of people sitting at a table. Courteney Cox et al. sitting at a table. Madeline Zima sitting on a bed. a woman sitting on a bed. a woman sitting on a bed. a woman sitting on a bed. David Schwimmer standing in front of a mirror posing for the camera. a person standing in front of a mirror posing for the camera. a man and a woman standing in a kitchen. a person standing in a room. a man playing a video game. a person sitting in a room. David Schwimmer standing in front of a building. a man sitting in front of a building. a person sitting in front of a fence. a person sitting in a room. a person in a dark room. a woman sitting in a dark room. a close up of a bridge. a person sitting on a kitchen counter. a group of people sitting at a table. a person sitting at a table. a person wearing a suit and tie. a person sitting at a table. a person cutting a cake. a person standing in a room. a person standing in a room. a group of people sitting at a table. a man standing in front of a mirror. a group of people sitting at a table in a restaurant. a man and a woman standing in front of a door. a person standing in front of a mirror posing for the camera. a man and a woman looking at the camera. '
-                   }
+                  {'id': '1', 'language': 'en', 'text': text_data}
                 ]}
         headers = {'Ocp-Apim-Subscription-Key': self.subscription_key}
         response = requests.post(text_analytics_url,

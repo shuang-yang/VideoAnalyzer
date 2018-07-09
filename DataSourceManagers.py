@@ -66,6 +66,7 @@ class VideoManager(object):
         self.curr_dir = path
         self.blob = blob_manager
 
+    # Obtain a list of frames with given parameters
     def grab_frames(self, filename, start_time, end_time, grab_rate_type, grab_rate):
 
         # Handle invalid input
