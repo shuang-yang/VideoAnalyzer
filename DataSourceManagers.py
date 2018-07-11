@@ -92,6 +92,7 @@ class VideoManager(object):
         # while success:
         #     # Capture image
         #     success, image = cap.read()
+
             # Create a VideoFrame and save as file according to grabRate
             current_video_time = int(current_frame_index / fpms)
             condition = current_frame_index % grab_rate == 0 if grab_rate_type == GrabRateType.BY_FRAME else int(
@@ -133,6 +134,8 @@ class VideoManager(object):
         print('Generating...' + filename)
         cv.imwrite(filename, frame.image)
         self.blob.upload(filename, 'image')
+        frame.set_url(self.blob.get_blob_url('image', filename))
+        frame.set_filename(filename)
 
     def generate_frame_filename(self, filename, index, frame_std_time):
         return os.path.splitext(self.curr_dir + filename)[0] + '_' + frame_std_time + '_' + str(index) + '.jpg'

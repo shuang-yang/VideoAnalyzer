@@ -60,7 +60,7 @@ class ImageAnalyzer(object):
                 batch_tasks = list(map(lambda x: executor.submit(self.analyze_remote, urls[index + x]), range(num)))
                 async_tasks.extend(batch_tasks)
                 time.sleep(1)
-                print("Image Analyzer Concurrency: Submitted batch " + str(index / 10))
+                print("Image Analyzer: Submitted batch " + str(index / 10))
                 index += max_call
 
         # Add result of analysis in the order of submission
@@ -103,7 +103,6 @@ class ImageAnalyzer(object):
         landmarks = []
         celebrities = []
         for detail in details:
-            print('considering detail')
             if detail.get("landmarks") is not None:
                 for landmark in detail["landmarks"]:
                     landmarks.append((landmark["name"], landmark["confidence"]))
@@ -169,7 +168,7 @@ class FaceAnalyzer(object):
                 batch_tasks = list(map(lambda x: executor.submit(self.analyze_remote, urls[index + x]), range(num)))
                 async_tasks.extend(batch_tasks)
                 time.sleep(1)
-                print("Face Analyzer Concurrency: Submitted batch " + str(index / max_call))
+                print("Face Analyzer: Submitted batch " + str(index / max_call))
                 index += max_call
 
         # Add result of analysis in the order of submission
@@ -187,7 +186,6 @@ class FaceAnalyzer(object):
         if len(analysis_json) == 0:
             return face_data_list
         for face_json in analysis_json:
-            print("analyzing face...")
             id = face_json["faceId"]
             rectangle = face_json["faceRectangle"]
             attributes = face_json["faceAttributes"]

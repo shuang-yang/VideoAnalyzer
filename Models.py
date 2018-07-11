@@ -5,18 +5,26 @@ from wordcloud import WordCloud
 
 
 class VideoFrame(object):
-    def __init__(self, image, video_time, index, image_data=None, face_data_list=None):
+    def __init__(self, image, video_time, index, image_data=None, face_data_list=None, url=None, filename = None):
         self.image = image
         self.video_time = video_time
         self.index = index
         self.image_data = image_data
         self.face_data_list = face_data_list
+        self.url = url
+        self.filename = filename
 
     def set_image_data(self, image_data):
         self.image_data = image_data
 
     def set_face_data_list(self, face_data_list):
         self.face_data_list = face_data_list
+
+    def set_url(self, url):
+        self.url = url
+
+    def set_filename(self, filename):
+        self.filename = filename
 
     def get_predominant_emotions(self, num):
         all_emotions = []
@@ -33,7 +41,7 @@ class VideoData(object):
         self.frames_with_data = frames_with_data
         self.audio_data = audio_data
 
-    def top_keywords_from_frames(self, num):
+    def top_keywords_from_tags(self, num):
         counter = collections.Counter(self.get_all_tags())
         top_keywords = counter.most_common(num)
         return top_keywords
@@ -71,6 +79,47 @@ class VideoData(object):
             else:
                 continue
         return caption_keywords_list
+
+    def get_face_traces_list(self):
+        face_traces_list = {}
+        for frame_data in self.frames_with_data:
+            for face in frame_data.face_data_list:
+                if face.id in face_traces_list:
+                    face_traces_list[face.id].append(frame_data.video_time)
+                else:
+                    face_traces_list[face.id] = [frame_data.video_time]
+        return face_traces_list
+
+    def get_dominant_colors(self, num):
+        all_frames_dominant_colors = []
+        for frame in self.frames_with_data:
+            all_frames_dominant_colors.extend(frame.image_data.dominant_colors)
+        counter = collections.Counter(all_frames_dominant_colors)
+        return counter.most_common(num)
+
+    def get_celebrities(self):
+        all_celebrities = {}
+        for frame in self.frames_with_data:
+            for celebrity in frame.image_data.celebrities:
+                all_celebrities.add(celebrity[0])
+        return all_celebrities
+
+    def get_landmarks(self):
+        all_landmarks = {}
+        for frame in self.frames_with_data:
+            for landmark in frame.image_data.landmarks:
+                all_landmarks.add(landmark[0])
+        return all_landmarks
+
+    def search_with_keyword(self, keyword):
+        search_result = []
+        for frame in self.frames_with_data:
+            captions = []
+            for caption in frame.image_data.captions:
+                captions.append(caption[0])
+            if keyword in captions or keyword in frame.image_data.tags:
+                search_result.append(frame)
+        return search_result
 
 
 class ImageData(object):
