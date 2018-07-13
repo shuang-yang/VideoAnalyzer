@@ -5,7 +5,7 @@ from wordcloud import WordCloud
 
 
 class VideoFrame(object):
-    def __init__(self, image, video_time, index, image_data=None, face_data_list=None, url=None, filename = None):
+    def __init__(self, image, video_time, index, image_data=None, face_data_list=None, url=None, filename=None, db_entry=None):
         self.image = image
         self.video_time = video_time
         self.index = index
@@ -13,6 +13,7 @@ class VideoFrame(object):
         self.face_data_list = face_data_list
         self.url = url
         self.filename = filename
+        self.db_entry = db_entry
 
     def set_image_data(self, image_data):
         self.image_data = image_data
@@ -25,6 +26,9 @@ class VideoFrame(object):
 
     def set_filename(self, filename):
         self.filename = filename
+
+    def set_db_entry(self, db_entry):
+        self.db_entry = db_entry
 
     def get_predominant_emotions(self, num):
         all_emotions = []

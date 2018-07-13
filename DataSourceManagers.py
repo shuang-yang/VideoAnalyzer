@@ -88,16 +88,10 @@ class VideoManager(object):
             success, image = cap.read()
         while success and cap.get(cv.CAP_PROP_POS_MSEC) < end_time * 1000:
             success, image = cap.read()
-            #
-        # while success:
-        #     # Capture image
-        #     success, image = cap.read()
-
             # Create a VideoFrame and save as file according to grabRate
             current_video_time = int(current_frame_index / fpms)
             condition = current_frame_index % grab_rate == 0 if grab_rate_type == GrabRateType.BY_FRAME else int(
                 current_video_time / grab_rate) > grabbed_frame_count
-
             if condition:
                 grabbed_frame_count += 1
                 frame = VideoFrame(image, current_video_time + start_time * 1000, current_frame_index)

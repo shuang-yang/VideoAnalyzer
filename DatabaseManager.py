@@ -163,6 +163,9 @@ class DBManager(object):
     # TODO - change get_collection_link to collection['_self']
 
     def create_doc(self, database_id, collection_id, doc):
+        docs = self.find_doc(database_id, collection_id, doc['id'])
+        if len(docs) != 0:
+            return docs[0]
         try:
             collection_link = self.get_collection_link(database_id, collection_id)
             doc = self.client.CreateDocument(collection_link, doc)
@@ -182,12 +185,25 @@ class DBManager(object):
     def replace_doc(self, doc):
         self.client.ReplaceDocument(doc['_self'], doc)
 
+    def find_doc(self, database_id, collection_id, id):
+        docs = list(self.client.QueryDocuments(
+            self.get_collection_link(database_id, collection_id),
+            {
+                "query": "SELECT * FROM r WHERE r.id=@id",
+                "parameters": [
+                    {"name": "@id", "value": id}
+                ]
+            }
+        ))
+
+        return docs
+
     @staticmethod
     def get_collection_link(database_id, collection_id):
         return 'dbs/' + database_id + '/colls/' + collection_id
 
     def get_next_id(self, database_id, collection_id):
-        collection_link = self.get_collection_link(database_id, collection_id)
         query = {'query': 'SELECT * FROM c ORDER BY c._ts DESC'}
         query_result = self.query_doc(database_id, collection_id, query)
-        return query_result[0]['_ts']
+        return '1' if len(query_result) == 0 else query_result[0]['_ts']
+

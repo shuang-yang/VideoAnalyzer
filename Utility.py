@@ -2,14 +2,13 @@ import os
 from enum import Enum
 from Models import *
 
-#
+#########################
 # Constants
-#
+#########################
 
-
-#
+#########################
 # Enums
-#
+#########################
 class GrabRateType(Enum):
     BY_FRAME = 0
     BY_SECOND = 1
@@ -29,13 +28,29 @@ class Messages(Enum):
     BLOB_NOT_FOUND = 'Blob is not found. Please make sure the name is correct.'
 
 
-class Constants(Enum):
+class Constants(object):
     CS_SUBSCRIPTION_HEADER = 'Ocp-Apim-Subscription-Key'
+    DB_NAME_VIDEOS = "Videos"
+    DB_NAME_FRAMES = "Frames"
+    COLLECTION_NAME_DEFAULT = "Metadata"
+    CONFIDENCE_THRESHOLD = 0.5
 
 
-#
+#########################
+# Utility classes
+#########################
+class UIDGenerator(object):
+    id = 0
+
+    @staticmethod
+    def next_id():
+        UIDGenerator.id += 1
+        return UIDGenerator.id
+
+
+#########################
 # Utility methods
-#
+#########################
 def ms_to_std_time(time_in_ms):
     time_in_s = int(time_in_ms / 1000)
     ms_component = get_ms_component(time_in_ms)
@@ -65,7 +80,7 @@ def get_ms_component(time_in_ms):
 def clear_local_files(path):
     files = os.listdir(path)
     for file in files:
-        if '.mp4' not in file and '.mkv' not in file:
+        if '.jpg' in file:
             file_path = os.path.join(path, file)
             try:
                 if os.path.isfile(file_path):
@@ -75,9 +90,9 @@ def clear_local_files(path):
                 print(e)
 
 
-#
+#########################
 # Exceptions
-#
+#########################
 class InvalidInputException(Exception):
     def __init__(self, arg):
         self.arg = arg

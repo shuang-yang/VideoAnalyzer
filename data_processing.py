@@ -35,7 +35,7 @@ def tokenize_sentence(sentence):
     return ' '.join(list(tokenize(sentence)))
 
 
-# Checks if article has both heading and abstract
+# Checks if article has both abstract and abstract
 def article_is_complete(article):
 
     if ('abstract' not in article) or ('article' not in article):
@@ -46,7 +46,7 @@ def article_is_complete(article):
     return True
 
 
-# Tokenizes raw data and creates list of headings and descriptions
+# Tokenizes raw data and creates list of abstracts and descriptions
 def tokenize_articles(raw_data):
 
     headings, descriptions = [], []
@@ -96,7 +96,7 @@ def index_data(tokenized_sentences, vocab_size):
 
     freq_dist = nltk.FreqDist(itertools.chain(*tokenized_sentences))
     vocab = freq_dist.most_common(vocab_size)
-    print ('Vocab length: {:,}'.format(len(vocab)))
+    print('Vocab length: {:,}'.format(len(vocab)))
 
     idx2word = ['_'] + [UNK] + [x[0] for x in vocab]
     word2idx = dict([(w, i) for i, w in enumerate(idx2word)])

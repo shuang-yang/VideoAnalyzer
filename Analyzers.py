@@ -76,7 +76,7 @@ class ImageAnalyzer(object):
     def convert_to_image_data(self, analysis_json):
         if len(analysis_json) == 0:
             return None
-        categories = map(lambda x: (x["name"], x["score"]), analysis_json["categories"])
+        categories = [(x["name"], x["score"]) for x in analysis_json["categories"]]
         tags = analysis_json["description"]["tags"]
 
         # Obtain captions information
