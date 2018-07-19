@@ -1,6 +1,9 @@
 import requests
 import copy
 import json
+import azure.mgmt.search as search
+import azure.mgmt.search.models as search_models
+import http.client
 
 
 class SearchManager(object):
@@ -8,10 +11,10 @@ class SearchManager(object):
         self.name = name
         self.api_version = api_version
         self.admin_key = admin_key
-        self.search_service = SearchService(api_version, path, url, admin_key)
+        self.search_client = SearchService(api_version, path, url, admin_key)
 
     def create_data_source(self, datasource_name, connection_string, collection_id, collection_query):
-        url = 'https://' + self.name + 'search.windows.net/datasource?api-version=' + self.api_version
+        url = 'https://' + self.name + '.search.windows.net/datasource?api-version=' + self.api_version
         headers = {
             'Content-Type': 'application/json',
             'api-key': self.admin_key
@@ -33,7 +36,55 @@ class SearchManager(object):
                 "softDeleteMarkerValue": "true"
             }
         }
-        requests.post(url, params=json.dump(params), headers=headers)
+        response = requests.post(url, params=json.dump(params), headers=headers)
+        print(response)
+
+    def create_index(self, index_name):
+        url = 'https://' + self.name + '.search.windows.net/indexes/' + index_name + '?api-version=' + self.api_version
+        data = {
+         "name": index_name,
+         "fields": [
+          {"name": "id", "type": "Edm.String", "key": true, "searchable": false},
+          {"name": "video_id", "type": "Edm.String", "filterable": true},
+          {"name": "time", "type": "Edm.Int64", "searchable": false, "filterable": false, "facetable": false},
+          {"name": "index", "type": "Edm.Int64", "searchable": false, "filterable": false, "facetable": false},
+          {"name": "url", "type": "Edm.String"},
+          {"name": "tags", "type": "Edm.String"},
+          {"name": "captions", "type": "Edm.String"},
+          {"name": "categories", "type": "Edm.String"},
+          {"name": "celebrities", "type": "Edm.String"},
+          {"name": "landmarks", "type": "Edm.String"},
+          {"name": "dominant_colors", "type": "Edm.String"},
+          {"name": "foreground_color", "type": "Edm.String"},
+          {"name": "background_color", "type": "Edm.String"},
+          {"name": "isBwImg", "type": "Edm.Boolean", "searchable": false},
+          {"name": "height", "type": "Edm.Int32", "searchable": false},
+          {"name": "width", "type": "Edm.Int32", "searchable": false}
+         ],
+         "suggesters": [
+          {
+           "name": "celeb",
+           "searchMode": "analyzingInfixMatching",
+           "sourceFields": ["celebrities", "landmarks"]
+          }
+         ]
+        }
+        response = requests.put(url, data=json.dump(data))
+        print(response)
+
+    def create_indexer(self, indexer_name, datasource_name, index_name):
+        url = 'https://' + self.name + '.search.windows.net/indexers?api-version=' + self.api_version
+        headers = {
+            'Content-Type': 'application/json',
+            'api-key': self.admin_key
+        }
+        params = {
+            "name": indexer_name,
+            "dataSourceName": datasource_name,
+            "targetIndexName": index_name
+        }
+        response = requests.post(url, params=json.dump(params), headers=headers)
+        print(response)
 
 
 class SearchService(object):
