@@ -33,6 +33,9 @@ class Constants(object):
     DB_NAME_VIDEOS = "Videos"
     DB_NAME_FRAMES = "Frames"
     COLLECTION_NAME_DEFAULT = "Metadata"
+    SEARCH_DATASOURCE_NAME_DEFAULT = "frames-db"
+    SEARCH_INDEX_NAME_DEFAULT = "frames-index"
+    SEARCH_INDEXER_NAME_DEFAULT = "frames-indexer"
     CONFIDENCE_THRESHOLD = 0.5
 
 

@@ -27,6 +27,7 @@ from Utility import *
 from Analyzers import *
 from DataSourceManagers import *
 from DatabaseManager import *
+from SearchManager import *
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
@@ -91,9 +92,10 @@ def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video
         frame.set_image_data(image_data)
 
         # Create Unique Cosmos DB ID
-        new_id = str(video_id) + '_' + ms_to_std_time(frame.video_time)
+        new_id = str(video_id) + '_' + str(frame.video_time)
 
         # Add db_entry based on image_data of the frame
+        # TODO - consider using Collection instead of joining them all in a string
         tags =','.join(image_data.tags)
         captions = ','.join([caption[0] for caption in image_data.captions if caption[1] >= Constants.CONFIDENCE_THRESHOLD ])
         celebrities = ','.join([celebrity[0] for celebrity in image_data.celebrities if celebrity[1] >= Constants.CONFIDENCE_THRESHOLD])
@@ -106,6 +108,7 @@ def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video
                'tags': tags, 'captions': captions, 'categories': categories, 'celebrities': celebrities, 'landmarks': landmarks,
                'dominant_colors': dominant_colors, 'foreground_color': image_data.foreground_color, 'background_color': image_data.background_color,
                'accent_color': image_data.accent_color, 'isBwImg': image_data.isBwImg, 'height': image_data.height, 'width': image_data.width}
+
         if db_manager.find_doc(Constants.DB_NAME_FRAMES, Constants.COLLECTION_NAME_DEFAULT, doc['id']):
             db_manager.replace_doc(doc)
         else:
@@ -250,6 +253,14 @@ def analyze_video(filename, start, end, sampling_type, sampling_rate, blob_manag
     return db_entry_summarized, video_data
 
 
+def search_locally(keyword):
+    search_result = video_data.search_with_keyword(keyword)
+    for result in search_result:
+        print('Keyword ' + keyword + ' found at frame:' + ms_to_std_time(result.video_time))
+        # image = Image.open(result.filename)
+        # image.show()
+
+
 # Main Execution Body
 if __name__ == '__main__':
     start = time.time()
@@ -280,17 +291,21 @@ if __name__ == '__main__':
             else db_manager.create_collection(Constants.DB_NAME_FRAMES, Constants.COLLECTION_NAME_DEFAULT, True, "V2", 400)
 
         # Analyze video with specified parameters: start time, end time, sampling rate
-        db_entry, video_data = analyze_video('Filipino_news3.mp4', start=30, end=35, sampling_type=GrabRateType.BY_SECOND,
-                      sampling_rate=1000, blob_manager=blob_manager, video_manager=video_manager, db_manager=db_manager)
+        # db_entry, video_data = analyze_video('Filipino_news3.mp4', start=30, end=35, sampling_type=GrabRateType.BY_SECOND,
+        #               sampling_rate=1000, blob_manager=blob_manager, video_manager=video_manager, db_manager=db_manager)
 
-        # Search for the keyword 'Police'
-        keyword = 'police'
-        search_result = video_data.search_with_keyword(keyword)
-        for result in search_result:
-            print('Keyword ' + keyword + ' found at frame:' + ms_to_std_time(result.video_time))
-            # image = Image.open(result.filename)
-            # image.show()
+        # Search for the keyword locally
+        # search_locally('Police')
 
+        # Search using Azure Search
+        search_manager = SearchManager("video-analyzer-search", "2017-11-11", 'https://video-analyzer-search.search.windows.net',
+                                       '40BCFD3875D09243AB49A3175FE9AD99')
+        search_manager.create_data_source(Constants.SEARCH_DATASOURCE_NAME_DEFAULT, "AccountEndpoint=https://video-analyzer-db.documents.azure.com:443/;AccountKey=VREFPwEbkjNwRji7XaIjbauu2ElUc9TBgEWQsJ4OnuYJYPuHUlfD1Ru2zprjQRvKHWCouxDIbbMAt06tXKk8kA==;Database=" + str(db_frames['id']),
+                                          str(collection_frames['id']), None)
+        # search_manager.create_source()
+        search_manager.create_index(Constants.SEARCH_INDEX_NAME_DEFAULT)
+        search_manager.create_indexer(Constants.SEARCH_INDEXER_NAME_DEFAULT, Constants.SEARCH_DATASOURCE_NAME_DEFAULT, Constants.SEARCH_INDEX_NAME_DEFAULT)
+        
         end = time.time()
         print('Ending: ' + str(end) + '\n')
         print('Time elapsed: ' + str(end - start) + '\n')
