@@ -291,8 +291,8 @@ if __name__ == '__main__':
             else db_manager.create_collection(Constants.DB_NAME_FRAMES, Constants.COLLECTION_NAME_DEFAULT, True, "V2", 400)
 
         # Analyze video with specified parameters: start time, end time, sampling rate
-        # db_entry, video_data = analyze_video('Filipino_news3.mp4', start=30, end=35, sampling_type=GrabRateType.BY_SECOND,
-        #               sampling_rate=1000, blob_manager=blob_manager, video_manager=video_manager, db_manager=db_manager)
+        db_entry, video_data = analyze_video('Filipino_news3.mp4', start=0, end=80, sampling_type=GrabRateType.BY_SECOND,
+                      sampling_rate=1000, blob_manager=blob_manager, video_manager=video_manager, db_manager=db_manager)
 
         # Search for the keyword locally
         # search_locally('Police')
@@ -302,10 +302,14 @@ if __name__ == '__main__':
                                        '40BCFD3875D09243AB49A3175FE9AD99')
         search_manager.create_data_source(Constants.SEARCH_DATASOURCE_NAME_DEFAULT, "AccountEndpoint=https://video-analyzer-db.documents.azure.com:443/;AccountKey=VREFPwEbkjNwRji7XaIjbauu2ElUc9TBgEWQsJ4OnuYJYPuHUlfD1Ru2zprjQRvKHWCouxDIbbMAt06tXKk8kA==;Database=" + str(db_frames['id']),
                                           str(collection_frames['id']), None)
-        # search_manager.create_source()
         search_manager.create_index(Constants.SEARCH_INDEX_NAME_DEFAULT)
         search_manager.create_indexer(Constants.SEARCH_INDEXER_NAME_DEFAULT, Constants.SEARCH_DATASOURCE_NAME_DEFAULT, Constants.SEARCH_INDEX_NAME_DEFAULT)
-        
+        search_manager.run_indexer(Constants.SEARCH_INDEXER_NAME_DEFAULT)
+        search_manager.get_indexer_status(Constants.SEARCH_INDEXER_NAME_DEFAULT)
+
+        response = search_manager.search(Constants.SEARCH_INDEX_NAME_DEFAULT, "car")
+        print(response.json())
+
         end = time.time()
         print('Ending: ' + str(end) + '\n')
         print('Time elapsed: ' + str(end - start) + '\n')

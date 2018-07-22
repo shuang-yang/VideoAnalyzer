@@ -110,7 +110,7 @@ class SearchManager(object):
         }
         data = {"search": query}
         response = requests.post(url, headers=headers, data=json.dumps(data))
-        print(response.json())
+        return response
 
 
 class SearchService(object):
