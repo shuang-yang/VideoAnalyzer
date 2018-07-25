@@ -12,6 +12,7 @@ import functools
 import json
 import time
 import nltk
+import sys
 import matplotlib.pyplot as plt
 # import unirest
 from PIL import Image
@@ -259,6 +260,14 @@ def search_locally(keyword):
         print('Keyword ' + keyword + ' found at frame:' + ms_to_std_time(result.video_time))
         # image = Image.open(result.filename)
         # image.show()
+
+
+def search(keyword):
+    search_manager = SearchManager("video-analyzer-search", "2017-11-11",
+                                   'https://video-analyzer-search.search.windows.net',
+                                   '40BCFD3875D09243AB49A3175FE9AD99')
+    response = search_manager.search(Constants.SEARCH_INDEX_NAME_DEFAULT, keyword)
+    return response.json()
 
 
 # Main Execution Body

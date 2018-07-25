@@ -1,0 +1,10 @@
+extends layout
+
+block content
+	h1= title
+	each val in result
+		div(style='margin-left:20px')
+			div(class='Image')
+				img(src='https://videoanalyserstorage.blob.core.windows.net/image/./data/Filipino_news3_00:01:05.000_65.jpg')
+			div(class='Description', style='margin-left:100px')
+				h2 This is #{val}
