@@ -1,4 +1,5 @@
 import sys
+import json
 from SearchManager import *
 
 def search(keyword):
@@ -11,5 +12,5 @@ def search(keyword):
 
 if __name__ == '__main__':
 	result = search(sys.argv[1])
-	print(str(result))
+	print(json.dumps(result))
 	sys.stdout.flush()
