@@ -67,22 +67,12 @@ def generate_word_clouds_from_frames(video_data):
     word_cloud.to_file('Suntec_captions_word_cloud.jpg')
 
 
-def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video_id):
+def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video_id, video_url):
     # Obtain a list of analyses based on the sampled frames asynchronously
     urls = []
     for b in blob.list_blobs('image'):
         urls.append(blob.get_blob_url('image', b.name))
     analyses = image_analyzer.analyze_remote_by_batch(urls)
-
-    # Print json information to file
-    output_file = open("./data/Output_image_json_" + filename + ".txt", "w")
-    index = 0
-    for analysis in analyses:
-        output_file.write('Frame ' + str(index) + ' : ' + '\n\n')
-        json.dump(analysis, output_file)
-        output_file.write('\n\n\n')
-        index += 1
-    output_file.close()
 
     # Add Image analyses result to frames
     image_data_list = map(lambda x: image_analyzer.convert_to_image_data(x), analyses)
@@ -104,7 +94,7 @@ def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video
         categories = ','.join([category[0] for category in image_data.categories if category[1] >= Constants.CONFIDENCE_THRESHOLD])
         dominant_colors = ','.join(image_data.dominant_colors)
 
-        doc = {'id': new_id, 'video_id': video_id, 'filename': filename,
+        doc = {'id': new_id, 'video_id': video_id, 'video_url': video_url, 'filename': filename,
                'index': frame.index, 'time': frame.video_time, 'url': frame.url,
                'tags': tags, 'captions': captions, 'categories': categories, 'celebrities': celebrities, 'landmarks': landmarks,
                'dominant_colors': dominant_colors, 'foreground_color': image_data.foreground_color, 'background_color': image_data.background_color,
@@ -115,12 +105,6 @@ def analyze_frames(blob, frame_list, image_analyzer, filename, db_manager, video
         else:
             db_entry = db_manager.create_doc(Constants.DB_NAME_FRAMES, Constants.COLLECTION_NAME_DEFAULT, doc)
             frame.set_db_entry(db_entry)
-
-    # # print tags text to file
-    # outputtags_file = open("./data/Output_tags_" + filename + ".txt", "w")
-    # for frame, image_data in frame_to_data_list:
-    #     outputtags_file.write('Frame at: ' + ms_to_std_time(frame.video_time) + '\n tags: \n' + str(image_data.tags) + '\n\n')
-    # outputtags_file.close()
 
 
 def analyze_faces(blob, frame_list, face_analyzer, filename, db_manager):
@@ -216,6 +200,9 @@ def analyze_video(filename, start, end, sampling_type, sampling_rate, blob_manag
     # Initiate Analyzers
     image_analyzer, face_analyzer, text_analyzer = init_analyzers()
 
+    # Upload Video
+    video_url = video_manager.upload_to_blob(os.path.join(video_manager.curr_dir, filename), 'video')
+
     # Generate Filename
     filename_no_extension = os.path.splitext(filename)[0]
 
@@ -233,7 +220,7 @@ def analyze_video(filename, start, end, sampling_type, sampling_rate, blob_manag
     frame_list = video_manager.grab_frames(filename, start, end, sampling_type, sampling_rate)
 
     # Analyze frames with Computer Vision API
-    analyze_frames(blob_manager, frame_list, image_analyzer, filename_no_extension, db_manager, new_video_id)
+    analyze_frames(blob_manager, frame_list, image_analyzer, filename_no_extension, db_manager, new_video_id, video_url)
 
     # Analyze frames with Face API
     analyze_faces(blob_manager, frame_list, face_analyzer, filename_no_extension, db_manager)
@@ -300,7 +287,7 @@ if __name__ == '__main__':
             else db_manager.create_collection(Constants.DB_NAME_FRAMES, Constants.COLLECTION_NAME_DEFAULT, True, "V2", 400)
 
         # Analyze video with specified parameters: start time, end time, sampling rate
-        db_entry, video_data = analyze_video('Filipino_news3.mp4', start=0, end=80, sampling_type=GrabRateType.BY_SECOND,
+        db_entry, video_data = analyze_video('Filipino_news3.mp4', start=0, end=5, sampling_type=GrabRateType.BY_SECOND,
                       sampling_rate=1000, blob_manager=blob_manager, video_manager=video_manager, db_manager=db_manager)
 
         # Search for the keyword locally
@@ -316,7 +303,7 @@ if __name__ == '__main__':
         search_manager.run_indexer(Constants.SEARCH_INDEXER_NAME_DEFAULT)
         search_manager.get_indexer_status(Constants.SEARCH_INDEXER_NAME_DEFAULT)
 
-        response = search_manager.search(Constants.SEARCH_INDEX_NAME_DEFAULT, "car")
+        response = search_manager.search(Constants.SEARCH_INDEX_NAME_DEFAULT, "man")
         print(response.json())
 
         end = time.time()

@@ -50,8 +50,10 @@ class SearchManager(object):
          "fields": [
           {"name": "id", "type": "Edm.String", "key": True, "searchable": False},
           {"name": "video_id", "type": "Edm.String", "filterable": True},
-          {"name": "time", "type": "Edm.Int64", "searchable": False, "filterable": False, "facetable": False},
+          {"name": "video_url", "type": "Edm.String"},
+          {"name": "filename", "type": "Edm.String", "filterable": True},
           {"name": "index", "type": "Edm.Int64", "searchable": False, "filterable": False, "facetable": False},
+          {"name": "time", "type": "Edm.Int64", "searchable": False, "filterable": False, "facetable": False},
           {"name": "url", "type": "Edm.String"},
           {"name": "tags", "type": "Edm.String"},
           {"name": "captions", "type": "Edm.String"},

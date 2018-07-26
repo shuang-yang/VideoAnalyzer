@@ -127,9 +127,12 @@ class VideoManager(object):
         filename = self.generate_frame_filename(filename, index, frame_std_time)
         print('Generating...' + filename)
         cv.imwrite(filename, frame.image)
-        self.blob.upload(filename, 'image')
-        frame.set_url(self.blob.get_blob_url('image', filename))
+        frame.set_url(self.upload_to_blob(filename, 'image'))
         frame.set_filename(filename)
+
+    def upload_to_blob(self, filename, container_name):
+        self.blob.upload(filename, container_name)
+        return self.blob.get_blob_url(container_name, filename)
 
     def generate_frame_filename(self, filename, index, frame_std_time):
         return os.path.splitext(self.curr_dir + filename)[0] + '_' + frame_std_time + '_' + str(index) + '.jpg'
